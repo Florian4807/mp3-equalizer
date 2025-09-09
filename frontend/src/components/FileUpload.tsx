@@ -1,18 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, DragEvent, ChangeEvent } from 'react';
 import { equalizeVolume, loadFFmpeg } from '../utils/ffmpeg';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
-const FileUpload = () => {
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [isDragActive, setIsDragActive] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const fileInputRef = useRef(null);
+const FileUpload: React.FC = () => {
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isDragActive, setIsDragActive] = useState<boolean>(false);
+  const [processing, setProcessing] = useState<boolean>(false);
+  const [progress, setProgress] = useState<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const validateFiles = (files) => {
-    const validFiles = [];
-    const errors = [];
+  const validateFiles = (files: FileList): File[] => {
+    const validFiles: File[] = [];
+    const errors: string[] = [];
 
     Array.from(files).forEach(file => {
       if (file.type === 'audio/mp3' || file.type === 'audio/mpeg' || file.name.toLowerCase().endsWith('.mp3')) {
@@ -29,14 +29,14 @@ const FileUpload = () => {
     return validFiles;
   };
 
-  const handleFileSelect = (files) => {
+  const handleFileSelect = (files: FileList): void => {
     const validFiles = validateFiles(files);
     if (validFiles.length > 0) {
       setSelectedFiles(validFiles);
     }
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDragActive(false);
     
@@ -44,22 +44,24 @@ const FileUpload = () => {
     handleFileSelect(files);
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDragActive(true);
   };
 
-  const handleDragLeave = (e) => {
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDragActive(false);
   };
 
-  const handleFileInputChange = (e) => {
+  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const files = e.target.files;
-    handleFileSelect(files);
+    if (files) {
+      handleFileSelect(files);
+    }
   };
 
-  const handleProcessFiles = async () => {
+  const handleProcessFiles = async (): Promise<void> => {
     if (selectedFiles.length === 0) {
       alert('Please select MP3 files to process');
       return;
@@ -69,33 +71,48 @@ const FileUpload = () => {
     setProgress(0);
 
     try {
+      // Load FFmpeg first
       await loadFFmpeg();
+      
       const zip = new JSZip();
-      const processedFiles = [];
+      const processedFiles: File[] = [];
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
-        const processedBlob = await equalizeVolume(file);
-        const processedFile = new File([processedBlob], `equalized_${file.name}`, { type: 'audio/mpeg' });
-        processedFiles.push(processedFile);
-        zip.file(processedFile.name, processedBlob);
-        setProgress(((i + 1) / selectedFiles.length) * 100);
+        console.log(`Processing file ${i + 1}/${selectedFiles.length}: ${file.name}`);
+        
+        try {
+          const processedBlob = await equalizeVolume(file);
+          const processedFile = new File([processedBlob], `equalized_${file.name}`, { type: 'audio/mpeg' });
+          processedFiles.push(processedFile);
+          zip.file(processedFile.name, processedBlob);
+          
+          setProgress(((i + 1) / selectedFiles.length) * 100);
+        } catch (fileError) {
+          console.error(`Error processing ${file.name}:`, fileError);
+          alert(`Failed to process ${file.name}. Skipping this file.`);
+        }
+      }
+
+      if (processedFiles.length === 0) {
+        alert('No files were successfully processed.');
+        return;
       }
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, 'equalized_mp3s.zip');
 
-      alert(`Successfully processed ${processedFiles.length} MP3 files. The zip file will be downloaded shortly.`);
+      alert(`Successfully processed ${processedFiles.length} out of ${selectedFiles.length} MP3 files. The zip file will be downloaded shortly.`);
 
     } catch (error) {
       console.error('Processing error:', error);
-      alert('Failed to process files. Please check the console for details.');
+      alert('Failed to process files. Please check the console for details and ensure your browser supports FFmpeg.');
     } finally {
       setProcessing(false);
     }
   };
 
-  const clearFiles = () => {
+  const clearFiles = (): void => {
     setSelectedFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';

@@ -2,7 +2,7 @@ import React from 'react';
 import FileUpload from './components/FileUpload';
 import './App.css';
 
-function App() {
+const App: React.FC = () => {
   return (
     <div className="App">
       <div className="container">
@@ -21,6 +21,6 @@ function App() {
       </div>
     </div>
   );
-}
+};
 
 export default App;
