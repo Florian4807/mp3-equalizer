@@ -1,38 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import FileUpload from './components/FileUpload';
-import ProcessingStatus from './components/ProcessingStatus';
-import DownloadResult from './components/DownloadResult';
 import './App.css';
 
 function App() {
-  const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
-
-  const handleUploadComplete = (uploadResult) => {
-    setResult(uploadResult);
-    setProcessing(false);
-    setError(null);
-  };
-
-  const handleUploadError = (errorMessage) => {
-    setError(errorMessage);
-    setProcessing(false);
-    setResult(null);
-  };
-
-  const handleUploadStart = () => {
-    setProcessing(true);
-    setError(null);
-    setResult(null);
-  };
-
-  const resetApp = () => {
-    setProcessing(false);
-    setResult(null);
-    setError(null);
-  };
-
   return (
     <div className="App">
       <div className="container">
@@ -42,34 +12,7 @@ function App() {
         </header>
 
         <main className="main-content">
-          {error && (
-            <div className="error-message">
-              <h3>Error</h3>
-              <p>{error}</p>
-              <button onClick={resetApp} className="reset-button">
-                Try Again
-              </button>
-            </div>
-          )}
-
-          {processing && (
-            <ProcessingStatus />
-          )}
-
-          {result && (
-            <DownloadResult 
-              result={result} 
-              onReset={resetApp}
-            />
-          )}
-
-          {!processing && !result && !error && (
-            <FileUpload 
-              onUploadStart={handleUploadStart}
-              onUploadComplete={handleUploadComplete}
-              onUploadError={handleUploadError}
-            />
-          )}
+          <FileUpload />
         </main>
 
         <footer className="footer">
