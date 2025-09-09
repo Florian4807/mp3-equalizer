@@ -1,0 +1,14 @@
+{
+  "name": "mp3-equalizer",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "@ffmpeg/ffmpeg": "^0.12.7",
+    "jszip": "^3.10.1"
+  },
+  "scripts": {
+    "start": "react-scripts start"
+  }
+}
