@@ -1,10 +1,13 @@
 import React, { useState, useRef } from 'react';
-import axios from 'axios';
+import { equalizeVolume, loadFFmpeg } from '../utils/ffmpeg';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
-const FileUpload = ({ onUploadStart, onUploadComplete, onUploadError }) => {
+const FileUpload = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isDragActive, setIsDragActive] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
 
   const validateFiles = (files) => {
@@ -56,44 +59,39 @@ const FileUpload = ({ onUploadStart, onUploadComplete, onUploadError }) => {
     handleFileSelect(files);
   };
 
-  const handleUpload = async () => {
+  const handleProcessFiles = async () => {
     if (selectedFiles.length === 0) {
-      alert('Please select MP3 files to upload');
+      alert('Please select MP3 files to process');
       return;
     }
 
-    setUploading(true);
-    onUploadStart();
+    setProcessing(true);
+    setProgress(0);
 
     try {
-      const formData = new FormData();
-      selectedFiles.forEach(file => {
-        formData.append('files', file);
-      });
+      await loadFFmpeg();
+      const zip = new JSZip();
+      const processedFiles = [];
 
-      const response = await axios.post('/upload-mp3s', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 300000, // 5 minutes timeout
-      });
-
-      onUploadComplete(response.data);
-    } catch (error) {
-      console.error('Upload error:', error);
-      let errorMessage = 'Failed to process files. ';
-      
-      if (error.response && error.response.data && error.response.data.detail) {
-        errorMessage += error.response.data.detail;
-      } else if (error.message) {
-        errorMessage += error.message;
-      } else {
-        errorMessage += 'Please try again.';
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const processedBlob = await equalizeVolume(file);
+        const processedFile = new File([processedBlob], `equalized_${file.name}`, { type: 'audio/mpeg' });
+        processedFiles.push(processedFile);
+        zip.file(processedFile.name, processedBlob);
+        setProgress(((i + 1) / selectedFiles.length) * 100);
       }
-      
-      onUploadError(errorMessage);
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      saveAs(zipBlob, 'equalized_mp3s.zip');
+
+      alert(`Successfully processed ${processedFiles.length} MP3 files. The zip file will be downloaded shortly.`);
+
+    } catch (error) {
+      console.error('Processing error:', error);
+      alert('Failed to process files. Please check the console for details.');
     } finally {
-      setUploading(false);
+      setProcessing(false);
     }
   };
 
@@ -144,20 +142,25 @@ const FileUpload = ({ onUploadStart, onUploadComplete, onUploadError }) => {
           <div style={{ marginTop: '15px' }}>
             <button
               className="upload-button"
-              onClick={handleUpload}
-              disabled={uploading}
+              onClick={handleProcessFiles}
+              disabled={processing}
             >
-              {uploading ? 'Processing...' : `Equalize ${selectedFiles.length} Files`}
+              {processing ? `Processing... ${Math.round(progress)}%` : `Equalize ${selectedFiles.length} Files`}
             </button>
             <button
               className="upload-button secondary-button"
               onClick={clearFiles}
-              disabled={uploading}
+              disabled={processing}
               style={{ marginLeft: '10px' }}
             >
               Clear
             </button>
           </div>
+          {processing && (
+            <div className="progress-bar-container">
+              <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+            </div>
+          )}
         </div>
       )}
     </div>
